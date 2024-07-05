@@ -10,7 +10,7 @@ class Ball {
     radius: number,
     velocity: Vector2 = new Vector2(0, 0)
   ) {
-    this.coordinates = coordinates; 
+    this.coordinates = coordinates;
     this.radius = radius;
     this.velocity = velocity;
     this.changed_velocity = false;

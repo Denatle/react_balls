@@ -8,7 +8,6 @@ import { assert } from "console";
 const CanvasContext = React.createContext<any>(null);
 
 export const CanvasProvider = ({ children }: PropsWithChildren) => {
-  // const [isDrawing, setIsDrawing] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const ballsRef = useRef<Array<Ball>>([]);
@@ -21,16 +20,10 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
       return;
     }
     let canvas = canvasRef.current;
-    // canvas.width = window.innerWidth * 2;
-    // canvas.height = window.innerHeight * 2;
-    // canvas.style.width = `${window.innerWidth}px`;
-    // canvas.style.height = `${window.innerHeight}px`;
-
     const context = canvas.getContext("2d");
     if (!context) {
       return;
     }
-    // context.scale(2, 2);
     contextRef.current = context;
   };
 
@@ -45,20 +38,19 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
         new Ball(
           new Vector2(offsetX, offsetY),
           // Math.round(Math.random() * 100),
-          50,
-          // new Vector2(Math.random() - 0.5, Math.random() - 0.5)
-          new Vector2(-0.2, -0.2)
+          25,
+          new Vector2(Math.random() - 0.5, Math.random() - 0.5)
+          // new Vector2(0.0, 0.2)
         )
       );
-    }
-    else if (button == 1) {
+    } else if (button == 1) {
       ballsRef.current.push(
         new Ball(
           new Vector2(offsetX, offsetY),
           // Math.round(Math.random() * 100),
           50,
-          // new Vector2(Math.random() - 0.5, Math.random() - 0.5)
-          new Vector2(0, 0)
+          new Vector2(Math.random() - 0.5, Math.random() - 0.5)
+          // new Vector2(0, 0)
         )
       );
     }
@@ -67,12 +59,11 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
   const draw = (time: number) => {
     if (previousTimeRef.current != undefined) {
       const deltaTime = time - previousTimeRef.current;
-
-      if (!contextRef.current || !canvasRef.current) {
-        return;
-      }
       clearCanvas();
       for (let ball of ballsRef.current) {
+        if (!contextRef.current || !canvasRef.current) {
+          return;
+        }
         apply_physics(ball, ballsRef.current, canvasRef.current, deltaTime);
 
         drawCircle(contextRef.current, {
@@ -84,6 +75,8 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
           startX: ball.coordinates.x,
         });
       }
+
+      ballsRef.current.map((ball) => (ball.changed_velocity = false));
     }
     previousTimeRef.current = time;
     requestRef.current = requestAnimationFrame(draw);
@@ -133,8 +126,7 @@ const drawCircle = (
     colorFill?: string;
     startX: number;
     startY: number;
-  },
-  rectDims: { w: number; h: number } = { w: 400, h: 3500 }
+  }
 ) => {
   const { radius, strokeStyle, startX, startY, lineWidth, colorFill } =
     circleDims;
@@ -156,24 +148,11 @@ const apply_physics = (
   cavnas: HTMLCanvasElement,
   deltaTime: number
 ) => {
-  if (ball.coordinates.y - ball.radius < 0) {
-    ball.velocity.y *= -0.5;
-    ball.coordinates.y += 2;
-  } else if (ball.coordinates.y + ball.radius > cavnas.height) {
-    ball.velocity.y *= -0.5;
-    ball.coordinates.y -= 2;
-  }
-
-  if (ball.coordinates.x - ball.radius < 0) {
-    ball.velocity.x *= -0.5;
-    ball.coordinates.x += 2;
-  } else if (ball.coordinates.x + ball.radius > cavnas.width) {
-    ball.velocity.x *= -0.5;
-    ball.coordinates.x -= 2;
-  }
-
   for (let other_ball of balls) {
-    if (ball === other_ball) {
+    if (ball.changed_velocity) {
+      break;
+    }
+    if (ball === other_ball || other_ball.changed_velocity) {
       continue;
     }
     if (
@@ -182,39 +161,85 @@ const apply_physics = (
     ) {
       continue;
     }
+    ball.changed_velocity = true;
+    other_ball.changed_velocity = true;
 
-    const mass1 = 1;
-    const mass2 = 1;
-    const damp = 1;
+    let mass1 = ball.radius / 50;
+    let mass2 = other_ball.radius / 50;
+    let damp = (mass1 + mass2) * 2;
 
     let direction = other_ball.coordinates
       .substract(ball.coordinates)
       .normalize();
 
     let previous_velocity = new Vector2(ball.velocity.x, ball.velocity.y);
-    ball.velocity = other_ball.velocity
-      .multiply_n(2 * mass2 - damp)
-      .add(ball.velocity.multiply_n(mass1 - mass2));
-    other_ball.velocity = previous_velocity
-      .multiply_n(2 * mass1 - damp)
-      .add(other_ball.velocity.multiply_n(mass2 - mass1));
 
+    ball.velocity = calculate_velocity(
+      ball.velocity,
+      other_ball.velocity,
+      ball.coordinates,
+      other_ball.coordinates,
+      mass1,
+      mass2,
+      damp
+    );
+    other_ball.velocity = calculate_velocity(
+      other_ball.velocity,
+      previous_velocity,
+      other_ball.coordinates,
+      ball.coordinates,
+      mass2,
+      mass1,
+      damp
+    );
     ball.coordinates = ball.coordinates.substract(
       direction.multiply_n(
         ball.radius -
           ball.coordinates.distance_to(other_ball.coordinates) +
-          other_ball.radius +
-          1
+          other_ball.radius
       )
     );
-    other_ball.coordinates = other_ball.coordinates.substract(
-      direction.multiply_n(
-        other_ball.radius -
-          other_ball.coordinates.distance_to(ball.coordinates) +
-          ball.radius +
-          1
-      )
-    );
+    // other_ball.coordinates = other_ball.coordinates.substract(
+    //   direction.multiply_n(
+    //     other_ball.radius -
+    //       other_ball.coordinates.distance_to(ball.coordinates) +
+    //       ball.radius
+    //   )
+    // );
+  }
+  if (ball.coordinates.y - ball.radius < 0) {
+    ball.velocity.y *= -0.5;
+    ball.coordinates.y += 3;
+  } else if (ball.coordinates.y + ball.radius > cavnas.height) {
+    ball.velocity.y *= -0.5;
+    ball.coordinates.y -= 3;
+  }
+
+  if (ball.coordinates.x - ball.radius < 0) {
+    ball.velocity.x *= -0.5;
+    ball.coordinates.x += 3;
+  } else if (ball.coordinates.x + ball.radius > cavnas.width) {
+    ball.velocity.x *= -0.5;
+    ball.coordinates.x -= 3;
   }
   ball.coordinates = ball.coordinates.add(ball.velocity.multiply_n(deltaTime));
 };
+
+const calculate_velocity = (
+  v1: Vector2,
+  v2: Vector2,
+  x1: Vector2,
+  x2: Vector2,
+  m1: number,
+  m2: number,
+  damp: number
+): Vector2 => {
+  let second = (2 * m2) / (m1 + m2);
+  let third =
+    v1.substract(v2).dot(x1.substract(x2)) / ((x1.substract(x2).length()) ** 2);
+  let fourth = x1.substract(x2);
+  return v1.substract(fourth.multiply_n(second).multiply_n(third)).divide_n(damp);
+};
+
+// (|x1| - |x2|) ^ 2
+// |x1 - x2| ^ 2

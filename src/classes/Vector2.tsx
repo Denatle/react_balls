@@ -55,6 +55,10 @@ class Vector2 {
   dot(other: Vector2): number {
     return this.x * other.x + this.y * other.y;
   }
+
+  angle(): number {
+    return Math.atan2(this.y, this.x)
+  }
 }
 
 export default Vector2;
