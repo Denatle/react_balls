@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-
+import { useEffect } from "react";
 import { useCanvas } from "../CanvasContext";
 
 function Canvas() {

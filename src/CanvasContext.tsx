@@ -33,7 +33,7 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
   };
 
   const mouseDown = ({ nativeEvent }: React.MouseEvent<HTMLCanvasElement>) => {
-    setContextMenu(<></>)
+    setContextMenu(<></>);
     nativeEvent.preventDefault();
     const button = nativeEvent.button;
     if (!contextRef.current) {
@@ -120,9 +120,17 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
     nativeEvent.preventDefault();
     for (let ball of ballsRef.current) {
       if (ball.coordinates.distance_to(mousePosRef.current) > ball.radius) {
-        continue
+        continue;
       }
-      setContextMenu(<BallMenu ball={ball} position={mousePosRef.current} on_change={() => {setContextMenu(<></>)}}></BallMenu>);
+      setContextMenu(
+        <BallMenu
+          ball={ball}
+          position={mousePosRef.current}
+          on_change={() => {
+            setContextMenu(<></>);
+          }}
+        ></BallMenu>
+      );
     }
   };
 

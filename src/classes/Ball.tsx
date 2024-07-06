@@ -1,7 +1,5 @@
 import Vector2 from "./Vector2";
 
-type RGB = `rgb(${number}, ${number}, ${number})`;
-
 class Ball {
   coordinates: Vector2;
   radius: number;
