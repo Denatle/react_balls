@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/react_balls/static/css/main.5db86440.css",
+    "main.js": "/react_balls/static/js/main.826a3c47.js",
+    "index.html": "/react_balls/index.html",
+    "main.5db86440.css.map": "/react_balls/static/css/main.5db86440.css.map",
+    "main.826a3c47.js.map": "/react_balls/static/js/main.826a3c47.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.5db86440.css",
+    "static/js/main.826a3c47.js"
+  ]
+}
