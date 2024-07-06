@@ -13,7 +13,7 @@ const BallMenu = ({ position, ball, on_change }: BallMenuProps) => {
   const [color, setColor] = React.useState<string>(ball.color);
   return (
     <div className="BallMenu" style={{ top: position.y, left: position.x }}>
-      <p>Ball color:</p>
+      <p>Цвет шарика:</p>
       <input
         type="color"
         value={color}

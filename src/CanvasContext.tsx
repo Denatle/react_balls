@@ -196,7 +196,6 @@ const apply_physics = (
 ) => {
   const bumpStrength = 0.1;
   if (isBumping && ball.coordinates.distance_to(mousePos) < ball.radius) {
-    console.log("bump");
     let direction = mousePos.substract(ball.coordinates).normalize();
     ball.velocity = ball.velocity.add(direction.multiply_n(-bumpStrength));
   }
