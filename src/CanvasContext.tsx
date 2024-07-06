@@ -3,7 +3,7 @@ import Ball from "./classes/Ball";
 
 import React, { useContext, useRef, useState } from "react";
 import Vector2 from "./classes/Vector2";
-import { assert } from "console";
+import BallMenu from "./components/BallMenu";
 
 const CanvasContext = React.createContext<any>(null);
 
@@ -12,8 +12,13 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const ballsRef = useRef<Array<Ball>>([]);
 
-  const requestRef = React.useRef<number>(0);
-  const previousTimeRef = React.useRef<number>();
+  const requestRef = useRef<number>(0);
+  const previousTimeRef = useRef<number>();
+
+  const mousePosRef = useRef<Vector2>(new Vector2(0, 0));
+  const isBumpingRef = useRef<boolean>(false);
+
+  const [contextMenuValue, setContextMenu] = useState<JSX.Element>();
 
   const prepareCanvas = () => {
     if (!canvasRef.current) {
@@ -27,36 +32,35 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
     contextRef.current = context;
   };
 
-  const click = ({ nativeEvent }: React.MouseEvent<HTMLCanvasElement>) => {
+  const mouseDown = ({ nativeEvent }: React.MouseEvent<HTMLCanvasElement>) => {
+    setContextMenu(<></>)
+    nativeEvent.preventDefault();
     const button = nativeEvent.button;
     if (!contextRef.current) {
       return;
     }
     const { offsetX, offsetY } = nativeEvent;
     if (button == 0) {
-      ballsRef.current.push(
-        new Ball(
-          new Vector2(offsetX, offsetY),
-          // Math.round(Math.random() * 100),
-          25,
-          new Vector2(Math.random() - 0.5, Math.random() - 0.5)
-          // new Vector2(0.0, 0.2)
-        )
-      );
+      isBumpingRef.current = true;
     } else if (button == 1) {
       ballsRef.current.push(
         new Ball(
           new Vector2(offsetX, offsetY),
-          // Math.round(Math.random() * 100),
-          50,
+          Math.round(Math.random() * 50 + 20),
           new Vector2(Math.random() - 0.5, Math.random() - 0.5)
-          // new Vector2(0, 0)
         )
       );
     }
   };
 
-  const draw = (time: number) => {
+  const mouseUp = ({ nativeEvent }: React.MouseEvent<HTMLCanvasElement>) => {
+    if (nativeEvent.button != 0) {
+      return;
+    }
+    isBumpingRef.current = false;
+  };
+
+  const update = (time: number) => {
     if (previousTimeRef.current != undefined) {
       const deltaTime = time - previousTimeRef.current;
       clearCanvas();
@@ -64,13 +68,21 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
         if (!contextRef.current || !canvasRef.current) {
           return;
         }
-        apply_physics(ball, ballsRef.current, canvasRef.current, deltaTime);
+
+        apply_physics(
+          ball,
+          ballsRef.current,
+          canvasRef.current,
+          deltaTime,
+          isBumpingRef.current,
+          mousePosRef.current
+        );
 
         drawCircle(contextRef.current, {
           radius: ball.radius,
           lineWidth: 3,
-          strokeStyle: "#4F7CAC",
-          colorFill: "#4F7CAC",
+          strokeStyle: ball.color,
+          colorFill: ball.color,
           startY: ball.coordinates.y,
           startX: ball.coordinates.x,
         });
@@ -79,7 +91,7 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
       ballsRef.current.map((ball) => (ball.changed_velocity = false));
     }
     previousTimeRef.current = time;
-    requestRef.current = requestAnimationFrame(draw);
+    requestRef.current = requestAnimationFrame(update);
   };
 
   const clearCanvas = () => {
@@ -95,23 +107,47 @@ export const CanvasProvider = ({ children }: PropsWithChildren) => {
     context.fillRect(0, 0, canvas.width, canvas.height);
   };
 
+  const updateMouse = ({
+    nativeEvent,
+  }: React.MouseEvent<HTMLCanvasElement>) => {
+    mousePosRef.current.x = nativeEvent.offsetX;
+    mousePosRef.current.y = nativeEvent.offsetY;
+  };
+
+  const contextMenu = ({
+    nativeEvent,
+  }: React.MouseEvent<HTMLCanvasElement>) => {
+    nativeEvent.preventDefault();
+    for (let ball of ballsRef.current) {
+      if (ball.coordinates.distance_to(mousePosRef.current) > ball.radius) {
+        continue
+      }
+      setContextMenu(<BallMenu ball={ball} position={mousePosRef.current} on_change={() => {setContextMenu(<></>)}}></BallMenu>);
+    }
+  };
+
   useEffect(() => {
-    requestRef.current = requestAnimationFrame(draw);
+    requestRef.current = requestAnimationFrame(update);
     return () => cancelAnimationFrame(requestRef.current);
   }, []);
 
   return (
-    <CanvasContext.Provider
-      value={{
-        canvasRef,
-        contextRef,
-        prepareCanvas,
-        click,
-        clearCanvas,
-      }}
-    >
-      {children}
-    </CanvasContext.Provider>
+    <>
+      <CanvasContext.Provider
+        value={{
+          canvasRef,
+          contextRef,
+          prepareCanvas,
+          mouseDown,
+          mouseUp,
+          updateMouse,
+          contextMenu,
+        }}
+      >
+        {children}
+      </CanvasContext.Provider>
+      {contextMenuValue}
+    </>
   );
 };
 
@@ -146,8 +182,17 @@ const apply_physics = (
   ball: Ball,
   balls: Array<Ball>,
   cavnas: HTMLCanvasElement,
-  deltaTime: number
+  deltaTime: number,
+  isBumping: boolean,
+  mousePos: Vector2
 ) => {
+  const bumpStrength = 0.1;
+  if (isBumping && ball.coordinates.distance_to(mousePos) < ball.radius) {
+    console.log("bump");
+    let direction = mousePos.substract(ball.coordinates).normalize();
+    ball.velocity = ball.velocity.add(direction.multiply_n(-bumpStrength));
+  }
+
   for (let other_ball of balls) {
     if (ball.changed_velocity) {
       break;
@@ -166,7 +211,7 @@ const apply_physics = (
 
     let mass1 = ball.radius / 50;
     let mass2 = other_ball.radius / 50;
-    let damp = (mass1 + mass2) * 2;
+    let damp = mass1 + mass2;
 
     let direction = other_ball.coordinates
       .substract(ball.coordinates)
@@ -199,28 +244,21 @@ const apply_physics = (
           other_ball.radius
       )
     );
-    // other_ball.coordinates = other_ball.coordinates.substract(
-    //   direction.multiply_n(
-    //     other_ball.radius -
-    //       other_ball.coordinates.distance_to(ball.coordinates) +
-    //       ball.radius
-    //   )
-    // );
   }
   if (ball.coordinates.y - ball.radius < 0) {
     ball.velocity.y *= -0.5;
-    ball.coordinates.y += 3;
+    ball.coordinates.y += 1;
   } else if (ball.coordinates.y + ball.radius > cavnas.height) {
     ball.velocity.y *= -0.5;
-    ball.coordinates.y -= 3;
+    ball.coordinates.y -= 1;
   }
 
   if (ball.coordinates.x - ball.radius < 0) {
     ball.velocity.x *= -0.5;
-    ball.coordinates.x += 3;
+    ball.coordinates.x += 1;
   } else if (ball.coordinates.x + ball.radius > cavnas.width) {
     ball.velocity.x *= -0.5;
-    ball.coordinates.x -= 3;
+    ball.coordinates.x -= 1;
   }
   ball.coordinates = ball.coordinates.add(ball.velocity.multiply_n(deltaTime));
 };
@@ -236,10 +274,9 @@ const calculate_velocity = (
 ): Vector2 => {
   let second = (2 * m2) / (m1 + m2);
   let third =
-    v1.substract(v2).dot(x1.substract(x2)) / ((x1.substract(x2).length()) ** 2);
+    v1.substract(v2).dot(x1.substract(x2)) / x1.substract(x2).length() ** 2;
   let fourth = x1.substract(x2);
-  return v1.substract(fourth.multiply_n(second).multiply_n(third)).divide_n(damp);
+  return v1
+    .substract(fourth.multiply_n(second).multiply_n(third))
+    .divide_n(damp);
 };
-
-// (|x1| - |x2|) ^ 2
-// |x1 - x2| ^ 2

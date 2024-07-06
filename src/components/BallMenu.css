@@ -1,0 +1,12 @@
+.BallMenu {
+    display: flex;
+    position: absolute;
+    flex-direction: row;
+    gap: 1rem;
+    align-items: center;
+    border: 0.1rem black solid;
+    border-radius: 15px;
+    padding: 0.5rem;
+    width: fit-content;
+    background-color: white;
+}

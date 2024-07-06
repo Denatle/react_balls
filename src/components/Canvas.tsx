@@ -6,8 +6,10 @@ function Canvas() {
   const {
     canvasRef,
     prepareCanvas,
-    click,
-    // draw
+    mouseDown,
+    mouseUp,
+    updateMouse,
+    contextMenu,
   } = useCanvas();
 
   useEffect(() => {
@@ -18,9 +20,11 @@ function Canvas() {
     <canvas
       height={800}
       width={1600}
-      onMouseDown={click}
-      // onMouseMove={draw}
+      onMouseDown={mouseDown}
+      onMouseUp={mouseUp}
+      onMouseMove={updateMouse}
       ref={canvasRef}
+      onContextMenu={contextMenu}
     />
   );
 }
